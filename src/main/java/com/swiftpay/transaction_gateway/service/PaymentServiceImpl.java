@@ -1,8 +1,10 @@
 package com.swiftpay.transaction_gateway.service;
 
+import com.swiftpay.transaction_gateway.dto.PaymentEvent;
 import com.swiftpay.transaction_gateway.dto.PaymentRequest;
 import com.swiftpay.transaction_gateway.entity.PaymentTransaction;
 import com.swiftpay.transaction_gateway.entity.TransactionStatus;
+import com.swiftpay.transaction_gateway.producer.PaymentEventProducer;
 import com.swiftpay.transaction_gateway.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentEventProducer producer;
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -31,5 +35,18 @@ public class PaymentServiceImpl implements PaymentService {
                         .build();
 
         paymentTransactionRepository.save(transaction);
+
+        PaymentEvent event =
+                PaymentEvent.builder()
+                        .transactionId(transaction.getTransactionId())
+                        .senderId(transaction.getSenderId())
+                        .receiverId(transaction.getReceiverId())
+                        .amount(transaction.getAmount())
+                        .currency(transaction.getCurrency())
+                        .status(transaction.getStatus().name())
+                        .createdAt(transaction.getCreatedAt())
+                        .build();
+
+        producer.publish(event);
     }
 }
